@@ -30,7 +30,7 @@ async function ensureTable(db) {
 
 async function listNotes(db) {
   const [rows] = await db.execute(
-    "SELECT name, created_at FROM notes ORDER BY id DESC LIMIT 50"
+    "SELECT name, created_at FROM notes ORDER BY id DESC LIMIT 1000"
   );
   return rows;
 }
