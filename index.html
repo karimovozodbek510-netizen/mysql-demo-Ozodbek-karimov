@@ -16,13 +16,24 @@
   <h1>Ismingizni qoldiring</h1>
   <input id="name" placeholder="Ism" maxlength="100">
   <button onclick="add()">Saqlash</button>
+  <p id="msg" role="status" aria-live="polite"></p>
   <ul id="list"></ul>
 
 <script>
 const API = "/.netlify/functions/api";
+const input = document.getElementById("name");
+const button = document.querySelector("button");
+const msg = document.getElementById("msg");
+let msgTimer;
 
-async function load() {
-  const rows = await (await fetch(API)).json();
+function showMessage(text, ok) {
+  clearTimeout(msgTimer);
+  msg.textContent = text;
+  msg.style.color = ok ? "green" : "crimson";
+  if (ok) msgTimer = setTimeout(() => { msg.textContent = ""; }, 4000);
+}
+
+function render(rows) {
   const ul = document.getElementById("list");
   ul.innerHTML = "";
   rows.forEach(r => {
@@ -35,14 +46,44 @@ async function load() {
   });
 }
 
-async function add() {
-  const input = document.getElementById("name");
-  const name = input.value.trim();
-  if (!name) return;
-  await fetch(API, { method: "POST", body: JSON.stringify({ name }) });
-  input.value = "";
-  load();
+async function load() {
+  try {
+    const res = await fetch(API);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Server xatosi");
+    render(data);
+  } catch (e) {
+    showMessage("Ma’lumotlarni yuklab bo‘lmadi: " + e.message, false);
+  }
 }
+
+async function add() {
+  const name = input.value.trim();
+  if (!name) {
+    showMessage("Iltimos, ism kiriting.", false);
+    input.focus();
+    return;
+  }
+  button.disabled = true;
+  try {
+    const res = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Server xatosi");
+    input.value = "";
+    render(data.rows || []);
+    showMessage("✅ “" + data.name + "” muvaffaqiyatli saqlandi!", true);
+  } catch (e) {
+    showMessage("Saqlashda xatolik: " + e.message, false);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+input.addEventListener("keydown", e => { if (e.key === "Enter") add(); });
 
 load();
 </script>
